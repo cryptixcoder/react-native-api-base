@@ -5,12 +5,15 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "db:generate": "turbo run db:generate",
     "db:migrate": "pnpm --filter @repo/database db:migrate",
     "db:deploy": "pnpm --filter @repo/database db:deploy",
-    "db:studio": "pnpm --filter @repo/database db:studio"
+    "db:studio": "pnpm --filter @repo/database db:studio",
+    "db:test:prepare": "pnpm --filter api db:test:prepare"
   },
   "devDependencies": {
     "prettier": "3.9.6",

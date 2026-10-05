@@ -1,159 +1,98 @@
-# Turborepo starter
+# react-native-api-base
 
-This Turborepo starter is maintained by the Turborepo core team.
+Starter monorepo for new projects: an **Express REST API** and an **Expo (React Native) app** with a complete, tested email + password authentication system.
 
-## Using this example
+| Layer      | Stack                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------ |
+| Monorepo   | pnpm workspaces + Turborepo, Node 24                                                       |
+| API        | Express 5, TypeScript, Zod, Pino, Helmet, express-rate-limit, Argon2id, JWT, Resend        |
+| Database   | PostgreSQL + Prisma 7 (`packages/database`, shared as `@repo/database`)                    |
+| Mobile     | Expo SDK 57, expo-router, TanStack React Query, axios, expo-secure-store                   |
+| Testing    | Jest everywhere: Supertest + real-Postgres integration tests (API), jest-expo + RNTL (mobile) |
 
-Run the following command:
-
-```sh
-npx create-turbo@latest
+```
+apps/
+  api/          Express API            (src/modules/<feature>/{schema,service,controller,routes}.ts)
+  mobile/       Expo app               (src/app = routes, src/api = HTTP, src/auth = session state)
+packages/
+  database/     Prisma schema, migrations and the shared client
+  tsconfig/     Shared TS config
+specs/          Design notes this starter was built from
 ```
 
-## What's inside?
-
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `@next/eslint-plugin-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+## First run
 
 ```sh
-cd my-turborepo
-turbo build
+nvm use 24                       # Node >= 24 is required
+pnpm install
+docker compose up -d db          # PostgreSQL on :5432 (db-test on :5433 is for integration tests)
+
+cp packages/database/.env.example packages/database/.env
+cp apps/api/.env.example apps/api/.env          # then set JWT_ACCESS_SECRET (openssl rand -base64 64)
+cp apps/mobile/.env.example apps/mobile/.env    # use your LAN IP when testing on a physical phone
+
+pnpm db:migrate                  # apply migrations to the dev database
+pnpm dev                         # API on :4000 + Expo dev server
 ```
 
-Without global `turbo`, use your package manager:
+Without `RESEND_API_KEY`, the API logs verification / reset links instead of emailing them. Paste a `myapp://reset-password?token=…` link into the simulator (`npx uri-scheme open "<link>" --ios`) to exercise the deep-link screens.
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm exec turbo build
-pnpm exec turbo build
-```
+## Commands
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+| Command                  | What it does                                                                  |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| `pnpm dev`               | Run the API (tsx watch) and the Expo dev server                               |
+| `pnpm test`              | Unit + HTTP tests for API and mobile (no database needed)                     |
+| `pnpm db:test:prepare`   | Migrate the test database (`docker compose up -d db-test` first)              |
+| `pnpm test:integration`  | API integration tests against the real test database                          |
+| `pnpm check-types`       | Typecheck every workspace                                                     |
+| `pnpm lint`              | Lint (mobile, via `expo lint`)                                                |
+| `pnpm build`             | Bundle the API to `apps/api/dist`                                             |
+| `pnpm db:migrate`        | Create/apply a migration in development (`-- --name <change>`)                |
+| `pnpm db:deploy`         | Apply migrations in production (run once as a release step)                   |
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+Per-workspace: `pnpm --filter api test:watch`, `pnpm --filter mobile test:coverage`, etc.
 
-```sh
-turbo build --filter=docs
-```
+Production image: `docker build -f apps/api/Dockerfile -t api .` (from the repo root). CI lives in `.github/workflows/ci.yml`.
 
-Without global `turbo`:
+## Authentication
 
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
+API (`/api/v1/auth`): `register`, `login`, `refresh`, `logout`, `logout-all`, `me`, `forgot-password`, `reset-password`, `verify-email`, `resend-verification`.
 
-### Develop
+- Passwords hashed with Argon2id; generic errors prevent account enumeration.
+- Short-lived JWT access tokens (15 min) + opaque refresh tokens stored as SHA-256 hashes in `auth_sessions`, **rotated on every refresh** (reuse is rejected).
+- Reset and verification tokens are hashed, expiring and single-use; a password reset revokes every session.
+- Errors always use `{ error: { code, message, requestId, details? } }`.
 
-To develop all apps and packages, run the following command:
+Mobile:
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+- Tokens live in SecureStore. `src/api/client.ts` attaches the access token, refreshes on 401 (one shared refresh for concurrent requests) and emits *session expired* when the refresh token is rejected.
+- **All server calls go through React Query**: the current user is the `['auth','me']` query; login/register/logout/reset/etc. are mutation hooks in `src/auth/use-auth-mutations.ts`.
+- `src/app/_layout.tsx` uses `Stack.Protected` guards to switch between the `(auth)` and `(app)` groups. `reset-password` and `verify-email` sit outside both groups so email deep links open in either state.
 
-```sh
-cd my-turborepo
-turbo dev
-```
+## Adding a feature
 
-Without global `turbo`, use your package manager:
+API (`apps/api/src/modules/<feature>/`):
 
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
-```
+1. Add models to `packages/database/prisma/schema.prisma`, then `pnpm db:migrate -- --name <feature>`.
+2. `<feature>.schema.ts` (Zod), `<feature>.service.ts` (business logic, throws `AppError`), `<feature>.controller.ts`, `<feature>.routes.ts` (`validate()`, `requireAuth`, `asyncHandler`).
+3. Mount the router in `src/app.ts`.
+4. Tests in `__tests__/`: unit tests mock Prisma via `mockPrisma()` from `src/test/prisma-mock.ts`; `*.integration.test.ts` files hit the real test database.
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+> The API runs as native ESM under Jest (TypeScript 7 has no compiler API for ts-jest, so `@swc/jest` strips types). Mock modules with `jest.unstable_mockModule()` and then `await import()` the code under test; see `auth.service.test.ts`.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+Mobile (`apps/mobile/src/`):
 
-```sh
-turbo dev --filter=web
-```
+1. Request functions in `api/<feature>.api.ts` using the shared `api` client.
+2. React Query hooks (`useQuery` / `useMutation`) wrapping them; never call the API directly from screens.
+3. Screens in `app/`; tests in `src/__tests__/` (route files can't live next to tests in `app/`). `renderRouter('./src/app', { initialUrl })` renders the real navigation tree.
 
-Without global `turbo`:
+## Before production
 
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
+Read the checklist in `specs/production-ready-express-rest-api.md` §17. In particular:
 
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+- Configure universal links / app links and set `MOBILE_APP_URL` to the https URL.
+- Set real `CORS_ORIGINS`, and make `trust proxy` (in `apps/api/src/app.ts`) match your proxy topology.
+- Use a Redis store for rate limits when running more than one API instance.
+- Move email sending to a job queue with retries.
+- Schedule cleanup of expired sessions and tokens (see `specs/authentication.md` §39-E).

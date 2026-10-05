@@ -1,14 +1,16 @@
 {
   "extends": "@repo/tsconfig/base.json",
   "compilerOptions": {
-    "outDir": "./dist",
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
     "rootDir": ".",
-    "types": ["node"],
+    "types": ["node", "jest"],
     "paths": {
       "@/*": ["./src/*"],
       "@config/*": ["./src/config/*"]
     }
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
