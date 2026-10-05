@@ -23,11 +23,17 @@ model User {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
+  sessions                AuthSession[] 
   refreshTokens           RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
 
   @@map("users")
+}
+
+model AuthSession {
+  id String @id @default(uuid()) 
+  userId String 
 }
 
 model RefreshToken {
