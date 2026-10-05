@@ -1,6 +1,10 @@
 # Production image for the API. Build from the repository root:
 #   docker build -f apps/api/Dockerfile -t api:local .
 #
+# The same image runs both processes:
+#   API:    docker run api:local                        (default CMD)
+#   Worker: docker run api:local node dist/worker.js    (email delivery + scheduled cleanup; needs REDIS_URL)
+#
 # Run database migrations as a separate release step (pnpm db:deploy) before rolling out new containers.
 
 FROM node:24-alpine AS build
@@ -12,7 +16,7 @@ RUN pnpm install --frozen-lockfile --filter api... \
   && pnpm --filter @repo/database db:generate \
   && pnpm --filter api build \
   && pnpm --filter api deploy --prod --legacy /out \
-  && cp -r apps/api/dist /out/dist
+  && rm -rf /out/dist && cp -r apps/api/dist /out/dist
 
 FROM node:24-alpine AS runtime
 ENV NODE_ENV=production

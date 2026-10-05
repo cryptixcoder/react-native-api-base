@@ -8,6 +8,10 @@ const envSchema = z
     PORT: z.coerce.number().int().positive().default(4000),
 
     DATABASE_URL: z.string().min(1),
+    // Backs the BullMQ job queues (email delivery, scheduled maintenance).
+    REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
+    // Namespaces this project's queue keys so several projects can share one Redis.
+    QUEUE_PREFIX: z.string().min(1).default('myapp'),
 
     API_URL: z.url(),
     // Base URL used in email links that should open the mobile app, e.g. myapp:// or https://app.example.com/
@@ -29,6 +33,10 @@ const envSchema = z
 
     EMAIL_VERIFICATION_EXPIRES_IN_HOURS: z.coerce.number().default(24),
     PASSWORD_RESET_EXPIRES_IN_MINUTES: z.coerce.number().default(30),
+
+    // Cron pattern (UTC) for deleting expired sessions and tokens, and how long revoked sessions are kept.
+    CLEANUP_CRON: z.string().min(1).default('0 3 * * *'),
+    REVOKED_SESSION_RETENTION_DAYS: z.coerce.number().int().nonnegative().default(7),
   })
   .refine((value) => value.NODE_ENV !== 'production' || Boolean(value.RESEND_API_KEY), {
     message: 'RESEND_API_KEY is required in production',

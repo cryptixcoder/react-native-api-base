@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "dev": {
+      "with": ["api#dev:worker"]
+    },
+    "dev:worker": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["^db:generate"]
+    }
+  }
+}

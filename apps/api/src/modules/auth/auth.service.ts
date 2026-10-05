@@ -66,7 +66,8 @@ export async function createSession(params: { user: User } & RequestMetadata): P
 
 /**
  * Invalidate outstanding verification tokens, create a new one and email it.
- * Email failures are logged, not thrown; add a job queue with retries for production.
+ * The email is queued for the worker (which retries delivery); a failure to queue is logged, not thrown,
+ * so the user can always request a new link.
  */
 async function issueVerificationEmail(user: User): Promise<void> {
   const rawToken = generateSecureToken();
@@ -87,7 +88,7 @@ async function issueVerificationEmail(user: User): Promise<void> {
   try {
     await sendVerificationEmail({ to: user.email, firstName: user.firstName, token: rawToken });
   } catch (error) {
-    logger.error({ err: error, userId: user.id }, 'verification email failed');
+    logger.error({ err: error, userId: user.id }, 'failed to queue verification email');
   }
 }
 
@@ -243,7 +244,7 @@ export async function forgotPassword(email: string): Promise<void> {
   try {
     await sendPasswordResetEmail({ to: user.email, firstName: user.firstName, token: rawToken });
   } catch (error) {
-    logger.error({ err: error, userId: user.id }, 'password reset email failed');
+    logger.error({ err: error, userId: user.id }, 'failed to queue password reset email');
   }
 }
 

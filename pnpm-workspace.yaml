@@ -5,6 +5,7 @@ allowBuilds:
   '@prisma/engines': true
   '@parcel/watcher': true
   '@swc/core': true
+  msgpackr-extract: false
   argon2: true
   esbuild: true
   prisma: true

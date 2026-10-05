@@ -2,6 +2,7 @@
   "name": "react-native-api-base",
   "private": true,
   "scripts": {
+    "init-project": "node scripts/init-project.mjs",
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
