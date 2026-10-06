@@ -12,6 +12,7 @@ jest.unstable_mockModule('@/modules/auth/auth.mail.js', () => ({
 
 const { createApp } = await import('@/app.js');
 const { createAccessToken } = await import('@/modules/auth/auth.tokens.js');
+const { flushActivity } = await import('@/modules/activity/activity.service.js');
 
 const app = createApp();
 
@@ -57,6 +58,39 @@ describe('auth routes (HTTP)', () => {
     expect(response.body.user).toMatchObject({ id: 'user-123', email: 'user@example.com' });
     expect(response.body.user).not.toHaveProperty('passwordHash');
     expect(prismaMock.user.findUnique).toHaveBeenCalledWith({ where: { id: 'user-123' } });
+  });
+
+  it('rejects a valid token for a suspended account', async () => {
+    prismaMock.user.findUnique.mockResolvedValue(buildUser({ status: 'SUSPENDED' }));
+    const token = createAccessToken({ userId: 'user-123', role: 'USER' });
+
+    const response = await request(app).get('/api/v1/auth/me').set('authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe('ACCOUNT_INACTIVE');
+  });
+
+  it('records the user as active with the client platform and version on /me', async () => {
+    prismaMock.user.findUnique.mockResolvedValue(buildUser());
+    const token = createAccessToken({ userId: 'user-123', role: 'USER' });
+
+    await request(app).get('/api/v1/auth/me').set('authorization', `Bearer ${token}`).set('x-client-platform', 'android').set('x-app-version', '3.1.0');
+    await flushActivity();
+
+    expect(prismaMock.userActivityDay.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ userId: 'user-123', platform: 'android', appVersion: '3.1.0' }) }),
+    );
+  });
+
+  it('forbids non-admins from the admin API', async () => {
+    prismaMock.user.findUnique.mockResolvedValue(buildUser({ role: 'USER' }));
+    const token = createAccessToken({ userId: 'user-123', role: 'ADMIN' });
+
+    const response = await request(app).get('/api/v1/admin/users').set('authorization', `Bearer ${token}`);
+
+    // The role in the token is ignored; the database role wins.
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('FORBIDDEN');
   });
 
   it('normalizes the email before looking up the user on login', async () => {

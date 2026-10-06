@@ -15,7 +15,9 @@
     "test:integration": "dotenv run -f .env.test --override -q -- node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --config jest.integration.config.js --runInBand",
     "test:ci": "pnpm test --ci --coverage",
     "db:test:prepare": "dotenv run -f .env.test --override -q -- pnpm --filter @repo/database exec prisma migrate deploy",
-    "jobs:cleanup": "tsx src/jobs/run-cleanup.ts"
+    "jobs:cleanup": "tsx src/jobs/run-cleanup.ts",
+    "admin:create": "tsx src/scripts/create-admin.ts",
+    "db:seed": "tsx src/scripts/seed-demo.ts"
   },
   "license": "ISC",
   "type": "module",

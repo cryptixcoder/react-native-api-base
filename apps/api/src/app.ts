@@ -6,8 +6,9 @@ import { corsOrigins, env } from '@config/env.js';
 import { logger } from '@/lib/logger.js';
 import { errorHandler } from '@/middleware/error-handler.js';
 import { notFound } from '@/middleware/not-found.js';
-import { authRateLimiter, globalRateLimiter } from '@/middleware/rate-limit.middleware.js';
+import { adminRateLimiter, globalRateLimiter } from '@/middleware/rate-limit.middleware.js';
 import { requestId } from '@/middleware/request-id.js';
+import { adminRouter } from '@/modules/admin/admin.routes.js';
 import { authRouter } from '@/modules/auth/auth.routes.js';
 import { healthRouter } from '@/modules/health/health.route.js';
 
@@ -31,7 +32,8 @@ export const createApp = () => {
   app.use(globalRateLimiter);
 
   app.use('/health', healthRouter);
-  app.use('/api/v1/auth', authRateLimiter, authRouter);
+  app.use('/api/v1/auth', authRouter);
+  app.use('/api/v1/admin', adminRateLimiter, adminRouter);
 
   app.use(notFound);
   app.use(errorHandler);

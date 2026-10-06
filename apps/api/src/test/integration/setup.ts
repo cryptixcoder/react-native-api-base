@@ -10,7 +10,7 @@ if (!process.env.DATABASE_URL?.includes('_test')) {
 
 beforeEach(async () => {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "auth_sessions", "password_reset_tokens", "email_verification_tokens", "users" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "admin_audit_logs", "user_activity_days", "auth_sessions", "password_reset_tokens", "email_verification_tokens", "users" RESTART IDENTITY CASCADE',
   );
 });
 

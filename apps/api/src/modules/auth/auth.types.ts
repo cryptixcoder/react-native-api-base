@@ -1,3 +1,4 @@
+import type { ClientInfo } from '@/modules/activity/activity.service.js';
 import type { User } from '@repo/database';
 
 export type PublicUser = Pick<User, 'id' | 'email' | 'firstName' | 'lastName' | 'role' | 'status' | 'emailVerifiedAt' | 'createdAt'>;
@@ -11,4 +12,8 @@ export interface AuthResponse {
 export interface RequestMetadata {
   userAgent?: string | undefined;
   ipAddress?: string | undefined;
+}
+
+export interface RequestContext extends RequestMetadata {
+  client: ClientInfo;
 }

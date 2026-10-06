@@ -9,3 +9,4 @@
 apps/mobile
 packages/database/src/generated
 *.log
+**/.next

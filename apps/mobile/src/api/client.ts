@@ -1,4 +1,6 @@
 import { create, isAxiosError, type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 import { notifySessionExpired } from '@/auth/auth-events';
 import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from '@/auth/auth.storage';
@@ -13,7 +15,12 @@ if (!API_URL) {
 const clientConfig = {
   baseURL: API_URL,
   timeout: 15_000,
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+    // Feed the admin dashboard's platform and app-version analytics.
+    'X-Client-Platform': Platform.OS,
+    'X-App-Version': Constants.expoConfig?.version ?? 'unknown',
+  },
 };
 
 /** Client for all app requests. Attaches the access token and transparently refreshes it on 401. */

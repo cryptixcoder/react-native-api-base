@@ -4,6 +4,7 @@ import { env } from '@config/env.js';
 import { logger } from '@/lib/logger.js';
 import { prisma } from '@/lib/prisma.js';
 import { closeRedis } from '@/lib/redis.js';
+import { flushActivity } from '@/modules/activity/activity.service.js';
 import { closeEmailQueue } from '@/modules/email/email.queue.js';
 
 const server = createServer(createApp());
@@ -19,6 +20,7 @@ function shutdown(signal: string, exitCode = 0): void {
   logger.info({ signal }, 'shutdown started');
 
   server.close(async (error) => {
+    await flushActivity();
     await closeEmailQueue();
     await Promise.all([prisma.$disconnect(), closeRedis()]);
 

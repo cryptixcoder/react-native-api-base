@@ -14,7 +14,8 @@
     "db:migrate": "pnpm --filter @repo/database db:migrate",
     "db:deploy": "pnpm --filter @repo/database db:deploy",
     "db:studio": "pnpm --filter @repo/database db:studio",
-    "db:test:prepare": "pnpm --filter api db:test:prepare"
+    "db:test:prepare": "pnpm --filter api db:test:prepare",
+    "db:seed": "pnpm --filter api db:seed"
   },
   "devDependencies": {
     "prettier": "3.9.6",

@@ -9,15 +9,17 @@
  *   - the app identity           myapp:// scheme, JWT issuer/audience, queue prefix → friendly
  *   - the Expo app               name → "Friendly", slug → friendly
  *   - the repo                   root package name, README title, docker compose project + container names
- *   - the email sender name      "My App <noreply@…>" → "Friendly <noreply@…>"
+ *   - the display name           "My App" → "Friendly" (email sender, admin panel brand)
  *
  * Uses only Node built-ins so it runs right after cloning, before installing anything.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+// fileURLToPath (not URL.pathname) so paths with spaces or other URL-encoded characters work.
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PLACEHOLDER_SCOPE = '@repo/';
 const PLACEHOLDER_REPO_NAME = 'react-native-api-base';
 
@@ -110,7 +112,8 @@ function buildReplacements({ name, displayName }) {
     { label: 'repo name', pattern: new RegExp(escapeRegExp(PLACEHOLDER_REPO_NAME), 'g'), replacement: name },
     // App identity: myapp:// deep links + app.json scheme, JWT issuer/audience (myapp-api), queue prefix.
     { label: 'myapp identity', pattern: /\bmyapp\b/g, replacement: name },
-    { label: 'email sender name', pattern: /\bMy App </g, replacement: `${displayName} <` },
+    // Display name: email sender, admin panel brand (apps/admin/src/config/brand.ts), page titles.
+    { label: 'display name', pattern: /\bMy App\b/g, replacement: displayName },
     // Docker: compose project name and machine-global container names.
     { label: 'compose project', files: /^docker-compose\.ya?ml$/, pattern: /^name: .+$/m, replacement: `name: ${name}` },
     {

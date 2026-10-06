@@ -19,3 +19,5 @@ minimumReleaseAgeExclude:
 # Native modules must exist in exactly one version (expo-doctor). Keep transitive copies on the app's version.
 overrides:
   expo-constants: 57.0.20
+  # Security: patched release of a transitive dependency of the Prisma CLI.
+  mysql2: ^3.22.0

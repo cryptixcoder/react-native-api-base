@@ -29,15 +29,56 @@ model User {
   status          UserStatus @default(ACTIVE)
   emailVerifiedAt DateTime?  @map("email_verified_at")
   lastLoginAt     DateTime?  @map("last_login_at")
+  suspendedAt     DateTime?  @map("suspended_at")
+  suspendedReason String?    @map("suspended_reason") @db.VarChar(500)
+  // Set when an admin deletes the account; the row is kept but anonymized.
+  deletedAt       DateTime?  @map("deleted_at")
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
   sessions                AuthSession[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
+  activityDays            UserActivityDay[]
+  adminActions            AdminAuditLog[] @relation("AuditActor")
+  auditEntries            AdminAuditLog[] @relation("AuditTarget")
 
   @@index([status])
+  @@index([createdAt])
   @@map("users")
+}
+
+/// One row per user per UTC day they used the app. Source for DAU/WAU/MAU, retention and platform analytics.
+model UserActivityDay {
+  userId      String   @map("user_id")
+  day         DateTime @db.Date
+  platform    String?  @db.VarChar(20)
+  appVersion  String?  @map("app_version") @db.VarChar(40)
+  firstSeenAt DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, day])
+  @@index([day])
+  @@map("user_activity_days")
+}
+
+/// Append-only record of every admin action, shown in the admin panel.
+model AdminAuditLog {
+  id           String   @id @default(cuid())
+  actorId      String?  @map("actor_id")
+  action       String   @db.VarChar(64)
+  targetUserId String?  @map("target_user_id")
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  actor  User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  target User? @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([targetUserId])
+  @@map("admin_audit_logs")
 }
 
 model AuthSession {

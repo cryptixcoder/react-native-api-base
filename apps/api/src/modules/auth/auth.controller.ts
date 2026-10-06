@@ -2,25 +2,32 @@ import type { Request, Response } from 'express';
 import { getAuthUser } from '@/middleware/auth.middleware.js';
 import * as authService from '@/modules/auth/auth.service.js';
 import type { LoginInput, RegisterInput } from '@/modules/auth/auth.schema.js';
-import type { RequestMetadata } from '@/modules/auth/auth.types.js';
+import { parseClientInfo, trackActivity } from '@/modules/activity/activity.service.js';
+import type { RequestContext } from '@/modules/auth/auth.types.js';
 
 // Request bodies below have already been parsed by the validate() middleware in auth.routes.ts.
+// Successful sign-ins, refreshes and /me calls also record the user as active today (for analytics).
 
-function getRequestMetadata(req: Request): RequestMetadata {
+function getRequestMetadata(req: Request): RequestContext {
   return {
     userAgent: req.get('user-agent'),
     ipAddress: req.ip,
+    client: parseClientInfo({ platform: req.get('x-client-platform'), appVersion: req.get('x-app-version') }),
   };
 }
 
 export async function register(req: Request, res: Response): Promise<void> {
-  const result = await authService.register(req.body as RegisterInput, getRequestMetadata(req));
+  const metadata = getRequestMetadata(req);
+  const result = await authService.register(req.body as RegisterInput, metadata);
+  trackActivity(result.user.id, metadata.client);
 
   res.status(201).json({ message: 'Registration successful', ...result });
 }
 
 export async function login(req: Request, res: Response): Promise<void> {
-  const result = await authService.login(req.body as LoginInput, getRequestMetadata(req));
+  const metadata = getRequestMetadata(req);
+  const result = await authService.login(req.body as LoginInput, metadata);
+  trackActivity(result.user.id, metadata.client);
 
   res.status(200).json({ message: 'Login successful', ...result });
 }
@@ -28,7 +35,9 @@ export async function login(req: Request, res: Response): Promise<void> {
 export async function refresh(req: Request, res: Response): Promise<void> {
   const { refreshToken } = req.body as { refreshToken: string };
 
-  const result = await authService.refreshSession({ refreshToken, ...getRequestMetadata(req) });
+  const metadata = getRequestMetadata(req);
+  const result = await authService.refreshSession({ refreshToken, ...metadata });
+  trackActivity(result.user.id, metadata.client);
 
   res.status(200).json(result);
 }
@@ -49,6 +58,7 @@ export async function logoutAll(req: Request, res: Response): Promise<void> {
 
 export async function me(req: Request, res: Response): Promise<void> {
   const user = await authService.getCurrentUser(getAuthUser(req).id);
+  trackActivity(user.id, getRequestMetadata(req).client);
 
   res.status(200).json({ user });
 }

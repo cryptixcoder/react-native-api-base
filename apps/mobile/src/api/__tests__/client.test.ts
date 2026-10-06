@@ -4,6 +4,8 @@ import { api, refreshClient } from '@/api/client';
 import { onSessionExpired } from '@/auth/auth-events';
 import { seedTokens, storedTokens } from '@/test/secure-store';
 
+jest.mock('expo-constants', () => ({ __esModule: true, default: { expoConfig: { version: '2.5.0' } } }));
+
 /**
  * Exercises the real interceptors with fake axios adapters (no network): one adapter for app
  * requests and one for the refresh call.
@@ -52,6 +54,17 @@ describe('api client', () => {
 
     expect(authHeader(apiAdapter.mock.calls[0]![0])).toBe('Bearer valid-access');
     expect(refreshAdapter).not.toHaveBeenCalled();
+  });
+
+  it('identifies the client platform and app version', async () => {
+    acceptOnly('valid-access');
+    seedTokens({ accessToken: 'valid-access' });
+
+    await api.get('/things');
+
+    const headers = AxiosHeaders.from(apiAdapter.mock.calls[0]![0].headers);
+    expect(headers.get('X-Client-Platform')).toBe('ios');
+    expect(headers.get('X-App-Version')).toBe('2.5.0');
   });
 
   it('refreshes on 401, stores the rotated tokens and retries the request', async () => {
